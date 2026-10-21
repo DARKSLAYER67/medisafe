@@ -2,8 +2,13 @@ import sqlite3
 import datetime
 import re
 import threading
-import winsound
 import os
+import sys
+
+try:
+    import winsound
+except ImportError:  # Android / Linux builds do not support winsound
+    winsound = None
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -30,6 +35,28 @@ Window.size = (380, 700)
 Window.clearcolor = (0.03, 0.05, 0.09, 1)
 
 DB_FILE = "medisafe.db"
+
+
+def play_system_alert_tone(frequency=1200, duration=800):
+    """Platform-safe alert tone for desktop and Android."""
+    if winsound is not None:
+        try:
+            winsound.Beep(frequency, duration)
+        except Exception:
+            pass
+
+
+# Android's default current directory is writable, but it is safer to use the app
+# data directory when available.
+def get_app_db_path():
+    candidate = os.environ.get("APP_STORAGE_DIR")
+    if candidate and os.path.isdir(candidate):
+        return os.path.join(candidate, DB_FILE)
+    return DB_FILE
+
+
+DB_FILE = get_app_db_path()
+
 
 def init_db():
     try:
@@ -67,21 +94,24 @@ def init_db():
     except Exception as e:
         print(f"Database Initialization Error (Handled): {e}")
 
+
 def log_adherence(patient, med_name, status):
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         cursor.execute("INSERT INTO adherence (patient, med_name, status, timestamp) VALUES (?, ?, ?, ?)",
-                       (patient, med_name, status, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        (patient, med_name, status, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
         conn.close()
     except Exception as e:
         print(f"Adherence Logging Error (Handled): {e}")
 
+
 def speak_text(text, lang="en"):
     if not GTTS_AVAILABLE:
         print(f"[TTS Simulated ({lang})]: {text}")
         return
+
     def run_speech():
         try:
             tts = gTTS(text=text, lang=lang, slow=False)
@@ -92,7 +122,9 @@ def speak_text(text, lang="en"):
                 sound.play()
         except Exception as e:
             print(f"gTTS Speech Error (Handled): {e}")
+
     threading.Thread(target=run_speech, daemon=True).start()
+
 
 class CardBox(BoxLayout):
     """Advanced 3D Glassmorphism Container with multi-layered shadows and specular depth."""
@@ -102,18 +134,12 @@ class CardBox(BoxLayout):
         self.padding = 10
         self.spacing = 6
         with self.canvas.before:
-            # 3D Outer Ambient Shadow Layer
             Color(0.01, 0.02, 0.04, 0.6)
             self.shadow = RoundedRectangle(size=self.size, pos=(self.pos[0], self.pos[1]-3), radius=[16])
-            
-            # Main 3D Card Body Background
             Color(*bg_color)
             self.rect = RoundedRectangle(size=self.size, pos=self.pos, radius=[14])
-            
-            # Specular 3D Top Highlight Border for extruded tactile look
             Color(0.20, 0.35, 0.55, 0.4)
             self.border = Line(rounded_rectangle=(self.pos[0], self.pos[1], self.size[0], self.size[1], 14), width=1.2)
-            
         self.bind(size=self._update_rect, pos=self._update_rect)
 
     def _update_rect(self, instance, value):
@@ -125,6 +151,7 @@ class CardBox(BoxLayout):
             self.border.rounded_rectangle = (instance.pos[0], instance.pos[1], instance.size[0], instance.size[1], 14)
         except Exception:
             pass
+
 
 class MedicineAppUI(BoxLayout):
     def __init__(self, **kwargs):
@@ -141,7 +168,6 @@ class MedicineAppUI(BoxLayout):
         content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10)
         content.bind(minimum_height=content.setter('height'))
 
-        # --- HEADER CARD ---
         header_card = CardBox(bg_color=(0.05, 0.09, 0.15, 1), size_hint_y=None, height=80)
         header_card.add_widget(Label(
             text="✨ MediSafe Patient Hub",
@@ -151,12 +177,12 @@ class MedicineAppUI(BoxLayout):
             size_hint_y=None,
             height=22
         ))
-        
+
         top_bar = BoxLayout(orientation='horizontal', size_hint_y=None, height=32, spacing=10)
         self.lang_btn = Button(
-            text="🌐 Language: English", 
-            font_size=10, 
-            background_normal='', 
+            text="🌐 Language: English",
+            font_size=10,
+            background_normal='',
             background_color=(0.12, 0.25, 0.4, 1),
             color=(0.9, 0.95, 1, 1)
         )
@@ -165,10 +191,9 @@ class MedicineAppUI(BoxLayout):
         header_card.add_widget(top_bar)
         content.add_widget(header_card)
 
-        # --- GUARDIAN DIRECTORY CARD ---
         g_card = CardBox(bg_color=(0.07, 0.12, 0.20, 1), size_hint_y=None, height=125)
         g_card.add_widget(Label(text="👤 Guardian Directory & Emergency Contacts", font_size=10, color=(0.7, 0.75, 0.85, 1), size_hint_y=None, height=14, bold=True))
-        
+
         g_inputs = BoxLayout(orientation='horizontal', size_hint_y=None, height=28, spacing=6)
         self.g_name_input = TextInput(hint_text='Guardian Name', font_size=10, multiline=False)
         self.country_spinner = Spinner(text='+91', values=('+91', '+1', '+44', '+34', '+33'), font_size=10, size_hint_x=None, width=60)
@@ -181,10 +206,10 @@ class MedicineAppUI(BoxLayout):
         g_actions = BoxLayout(orientation='horizontal', size_hint_y=None, height=30, spacing=6)
         save_g_btn = Button(text="Save Guardian", background_normal='', background_color=(0.08, 0.55, 0.38, 1), color=(1,1,1,1), font_size=10)
         save_g_btn.bind(on_press=self.save_guardian)
-        
+
         self.guardian_spinner = Spinner(text='Select Guardian', values=('No Guardians Saved',), font_size=10)
         self.guardian_spinner.bind(text=self.on_guardian_select)
-        
+
         del_g_btn = Button(text="Remove", background_normal='', background_color=(0.75, 0.25, 0.25, 1), color=(1,1,1,1), font_size=10, size_hint_x=None, width=65)
         del_g_btn.bind(on_press=self.remove_guardian)
 
@@ -194,7 +219,6 @@ class MedicineAppUI(BoxLayout):
         g_card.add_widget(g_actions)
         content.add_widget(g_card)
 
-        # --- EMERGENCY BUTTON ---
         emergency_btn = Button(
             text="🚨 EMERGENCY: Alert Guardian Now",
             font_size=11,
@@ -208,13 +232,12 @@ class MedicineAppUI(BoxLayout):
         emergency_btn.bind(on_press=self.trigger_emergency_alert)
         content.add_widget(emergency_btn)
 
-        # --- MEDICATION SCHEDULER & INVENTORY CARD ---
         m_card = CardBox(bg_color=(0.07, 0.12, 0.20, 1), size_hint_y=None, height=190)
         m_card.add_widget(Label(text="💊 Medication Scheduler", font_size=10, color=(0.7, 0.75, 0.85, 1), size_hint_y=None, height=14, bold=True))
-        
+
         self.patient_input = TextInput(hint_text='Patient Name (e.g. Grandpa)', font_size=10, multiline=False, size_hint_y=None, height=26)
         self.name_input = TextInput(hint_text='Medicine Name (e.g. Metformin)', font_size=10, multiline=False, size_hint_y=None, height=26)
-        
+
         m_row1 = BoxLayout(orientation='horizontal', size_hint_y=None, height=26, spacing=5)
         self.dosage_input = TextInput(hint_text='Dosage (1 Pill)', font_size=10, multiline=False)
         self.time_input = TextInput(hint_text='Time (e.g. 08:00 AM)', font_size=10, multiline=False)
@@ -240,14 +263,13 @@ class MedicineAppUI(BoxLayout):
         m_card.add_widget(add_med_btn)
         content.add_widget(m_card)
 
-        # --- REMOVE MEDICINE & TESTING CARD ---
         act_card = CardBox(bg_color=(0.07, 0.12, 0.20, 1), size_hint_y=None, height=75)
         act_card.add_widget(Label(text="⚙️ Manage Schedules & Test", font_size=10, color=(0.7, 0.75, 0.85, 1), size_hint_y=None, height=14, bold=True))
 
         act_bar = BoxLayout(orientation='horizontal', size_hint_y=None, height=30, spacing=6)
         self.med_spinner = Spinner(text='Select Med to Remove', values=('No Meds Scheduled',), font_size=10)
         self.med_spinner.bind(text=self.on_med_select)
-        
+
         del_m_btn = Button(text="🗑️ Remove", background_normal='', background_color=(0.75, 0.25, 0.25, 1), color=(1,1,1,1), font_size=10, size_hint_x=None, width=80)
         del_m_btn.bind(on_press=self.remove_medicine)
 
@@ -269,10 +291,9 @@ class MedicineAppUI(BoxLayout):
         test_btn.bind(on_press=self.trigger_test_alarm)
         content.add_widget(test_btn)
 
-        # --- ESP32 HARDWARE SETUP CARD (PLACED AT BOTTOM) ---
         esp_card = CardBox(bg_color=(0.07, 0.12, 0.20, 1), size_hint_y=None, height=55)
         esp_card.add_widget(Label(text="📶 ESP32 Hardware Network IP", font_size=10, color=(0.7, 0.75, 0.85, 1), size_hint_y=None, height=14, bold=True))
-        
+
         ip_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=26, spacing=6)
         ip_row.add_widget(Label(text="ESP32 IP:", font_size=10, bold=True, size_hint_x=None, width=60))
         self.ip_input = TextInput(text="192.168.1.50", font_size=10, multiline=False, halign='center')
@@ -280,10 +301,9 @@ class MedicineAppUI(BoxLayout):
         esp_card.add_widget(ip_row)
         content.add_widget(esp_card)
 
-        # --- LIVE STATUS PANEL ---
         status_card = CardBox(bg_color=(0.05, 0.09, 0.15, 1), size_hint_y=None, height=130)
         status_card.add_widget(Label(text="📊 Live Schedules & Inventory Log", font_size=10, color=(0.7, 0.75, 0.85, 1), size_hint_y=None, height=14, bold=True))
-        
+
         self.status_label = Label(
             text="System Online. Ready for schedules...",
             font_size=10,
@@ -306,14 +326,14 @@ class MedicineAppUI(BoxLayout):
         try:
             content = BoxLayout(orientation='vertical', padding=10, spacing=6)
             content.add_widget(Label(text="Select Voice Language", font_size=12, color=(1,1,1,1), size_hint_y=None, height=22))
-            
+
             languages = [
                 ("English", "en"), ("Hindi (हिंदी)", "hi"), ("Bengali (বাংলা)", "bn"),
                 ("Telugu (తెలుగు)", "te"), ("Marathi (मराठी)", "mr"), ("Tamil (தமிழ்)", "ta"),
                 ("Gujarati (ગુજરાતી)", "gu"), ("Urdu (اردو)", "ur"), ("Kannada (ಕನ್ನಡ)", "kn"),
                 ("Malayalam (മലയാളം)", "ml"), ("Punjabi (ਪੰਜਾਬੀ)", "pa")
             ]
-            
+
             popup = Popup(title="Language Settings", content=content, size_hint=(0.8, 0.8))
             for name, code in languages:
                 btn = Button(text=name, font_size=11, size_hint_y=None, height=30, background_normal='', background_color=(0.15, 0.3, 0.45, 1), color=(1,1,1,1))
@@ -338,8 +358,8 @@ class MedicineAppUI(BoxLayout):
                 return
             url = f"http://{ip}{endpoint}"
             UrlRequest(
-                url, 
-                on_success=lambda req, res: print(f"ESP32 Success: {endpoint}"), 
+                url,
+                on_success=lambda req, res: print(f"ESP32 Success: {endpoint}"),
                 on_error=lambda req, err: print(f"ESP32 Connection Error (Handled): {err}"),
                 on_failure=lambda req, err: print(f"ESP32 Failure (Handled): {err}"),
                 timeout=2
@@ -355,13 +375,13 @@ class MedicineAppUI(BoxLayout):
                 self.show_popup("Error", "Enter Guardian Name and Phone Number!")
                 return
             full_number = f"{self.country_spinner.text}{phone}"
-            
+
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("INSERT OR REPLACE INTO guardians (name, full_number) VALUES (?, ?)", (name, full_number))
             conn.commit()
             conn.close()
-            
+
             self.g_name_input.text = ""
             self.g_phone_input.text = ""
             self.refresh_guardians_dropdowns()
@@ -480,7 +500,7 @@ class MedicineAppUI(BoxLayout):
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO medicines (patient, guardian_number, name, dosage, time, frequency, pills_left) 
+                INSERT INTO medicines (patient, guardian_number, name, dosage, time, frequency, pills_left)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (patient, self.assigned_guardian_number, name, dosage, time_str, freq, pills))
             conn.commit()
@@ -531,6 +551,7 @@ class MedicineAppUI(BoxLayout):
         except Exception as e:
             print(f"Popup Error (Handled): {e}")
 
+
 class MedicineReminderApp(App):
     def build(self):
         try:
@@ -564,10 +585,10 @@ class MedicineReminderApp(App):
 
             def ring(dt):
                 try:
-                    winsound.Beep(1200, 800)
+                    play_system_alert_tone(1200, 800)
                 except Exception:
                     pass
-                
+
                 lang = self.root.current_lang
                 if lang == "hi":
                     msg = f"नमस्ते {patient}! दवाई लेने का समय हो गया है। {name}, मात्रा: {dosage}."
@@ -650,7 +671,7 @@ class MedicineReminderApp(App):
             if action == "TAKEN" and self.alarm_data:
                 d = self.alarm_data
                 log_adherence(d["patient"], d["name"], "TAKEN")
-                
+
                 led_channel = ((d["id"] - 1) % 6) + 1
                 self.root.send_esp32_command(f"/led{led_channel}/off")
 
@@ -688,6 +709,7 @@ class MedicineReminderApp(App):
                         self.cache.remove(key)
         except Exception as e:
             print(f"Check Reminders Error (Handled): {e}")
+
 
 if __name__ == '__main__':
     try:
