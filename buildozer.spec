@@ -13,7 +13,7 @@ package.domain = org.medisafe
 source.dir = .
 
 # (list) Source files to include (let it include python files, assets, etc.)
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,mp3
 
 # (str) Application version (Required by Buildozer)
 version = 1.0
@@ -25,7 +25,18 @@ requirements = python3,kivy,gtts,requests,urllib3,certifi,idna,charset-normalize
 orientation = portrait
 
 # (list) Permissions
-android.permissions = INTERNET,ACCESS_WIFI_STATE,ACCESS_NETWORK_STATE
+android.permissions = INTERNET,ACCESS_WIFI_STATE,ACCESS_NETWORK_STATE,WAKE_LOCK
+
+# Android target configuration for APK builds
+android.api = 33
+android.minapi = 21
+android.sdk = 33
+android.ndk = 25b
+android.arch = arm64-v8a
+android.accept_sdk_license = True
+
+# Build and packaging settings
+p4a.branch = stable
 
 [buildozer]
 # (int) Log level (0 = error, 1 = info, 2 = debug)
