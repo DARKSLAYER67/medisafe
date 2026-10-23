@@ -37,7 +37,7 @@ android.accept_sdk_license = True
 
 # Build and packaging settings
 p4a.branch = stable
-
+p4a.branch = develop
 [buildozer]
 # (int) Log level (0 = error, 1 = info, 2 = debug)
 log_level = 2
