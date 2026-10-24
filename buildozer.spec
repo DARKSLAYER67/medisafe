@@ -19,7 +19,7 @@ source.include_exts = py,png,jpg,kv,atlas,mp3
 version = 1.0
 
 # (list) Application requirements
-requirements = python3,kivy,gtts,requests,urllib3,certifi,idna,charset-normalizer
+requirements = python3,kivy,requests,urllib3,certifi,idna,charset-normalizer
 
 # (str) Supported orientations
 orientation = portrait
