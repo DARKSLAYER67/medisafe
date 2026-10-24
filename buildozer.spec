@@ -9,7 +9,7 @@ package.name = medisafe
 # (str) Package domain (needed for android packaging)
 package.domain = org.medisafe
 
-# (str) Where are the source files located? (.) means current directory
+# (str) Where are the source files located?
 source.dir = .
 
 # (list) Source files to include (let it include python files, assets, etc.)
@@ -27,16 +27,14 @@ orientation = portrait
 # (list) Permissions
 android.permissions = INTERNET,ACCESS_WIFI_STATE,ACCESS_NETWORK_STATE,WAKE_LOCK
 
-# Android target configuration for APK builds
-android.api = 33
+# (str) Android target configuration for APK builds
 android.minapi = 21
-android.sdk = 33
-android.ndk = 25b
-android.arch = arm64-v8a
+android.archs = arm64-v8a
 android.accept_sdk_license = True
 
 # Build and packaging settings
 p4a.branch = develop
+
 [buildozer]
 # (int) Log level (0 = error, 1 = info, 2 = debug)
 log_level = 2
