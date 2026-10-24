@@ -33,8 +33,8 @@ android.ndk = 25b
 android.archs = arm64-v8a
 android.accept_sdk_license = True
 
-# Build and packaging settings
-p4a.branch = develop
+# Build and packaging settings (change develop to stable)
+p4a.branch = stable
 
 [buildozer]
 # (int) Log level (0 = error, 1 = info, 2 = debug)
